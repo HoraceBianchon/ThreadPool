@@ -4,6 +4,7 @@
 #include <functional>
 #include <future>
 #include <queue>
+#include <iostream>
 
 class ThreadPool {
 public:
@@ -11,6 +12,9 @@ public:
     template<class F, class... Args>
     decltype(auto) enqueue(F&& f, Args&&... args);
     ~ThreadPool();
+
+    void stopAll();
+    void joinAll();
 private:
     // need to keep track of threads so we can join them
     std::vector< std::thread > workers;
@@ -38,9 +42,14 @@ inline ThreadPool::ThreadPool(size_t threads)
                     {
                         std::unique_lock<std::mutex> lock(this->queue_mutex);
                         this->condition.wait(lock,
-                            [this]{ return this->stop || !this->tasks.empty(); });
+                            [this]
+                            {
+                                return this->stop || !this->tasks.empty();
+                            });
                         if(this->stop && this->tasks.empty())
+                        {
                             return;
+                        }
                         task = std::move(this->tasks.front());
                         this->tasks.pop();
                     }
